@@ -1,14 +1,16 @@
 from fpdf import FPDF
-from dokusan import generators, solvers # solvers a été ajouté
+from dokusan import generators, solvers
 import random
-import math # Pour le calcul des positions
+import math
 
 # --- CONFIGURATION GLOBALE ---
 NOMBRE_PUZZLES = 12  # Pour le test (doit être un multiple de 4 idéalement)
+
 # Dimensions pour les puzzles (grilles d'exercice)
 TAILLE_GRILLE = 80   # Taille en mm
 MARGE_GAUCHE = 15
 MARGE_HAUT = 30
+
 # Dimensions pour les solutions (mini-grilles)
 TAILLE_MINI_GRILLE = 40 # 40mm pour que 4 tiennent sur une ligne
 ESPACE_LIGNE_SOL = 5    # Espace vertical entre les lignes de solutions
@@ -26,20 +28,20 @@ class PDF(FPDF):
                 self.cell(0, 10, 'Solutions', align='C')
             
             self.ln(15)
-
+    
     def footer(self):
         self.set_y(-15)
         self.set_font('helvetica', '', 8)
         self.set_text_color(0)
         self.cell(0, 10, f'Page {self.page_no()}', align='C')
-
+    
     def dessiner_sudoku(self, x, y, data, numero_puzzle, difficulte_score):
         """ Dessine une grille complète de puzzle """
         self.set_xy(x, y)
         
         # 1. Titre du puzzle
         self.set_font('helvetica', 'B', 10)
-        self.cell(TAILLE_GRILLE, 8, f"Puzzle N°{numero_puzzle} (Score: {difficulte_score})", align='L')
+        self.cell(TAILLE_GRILLE, 8, f"Puzzle N°{numero_puzzle} (Cases vides: {difficulte_score})", align='L')
         
         # 2. Dessiner les cases et les nombres
         taille_case = TAILLE_GRILLE / 9
@@ -61,16 +63,16 @@ class PDF(FPDF):
                     self.set_text_color(0) # Noir
                     self.set_xy(pos_x, pos_y + 2) 
                     self.cell(taille_case, taille_case - 4, char, align='C')
-
+        
         # 3. Dessiner les bordures épaisses (Blocs 3x3)
         self.set_line_width(0.8) 
         self.rect(x, y + 8, TAILLE_GRILLE, TAILLE_GRILLE) # Contour extérieur
+        
         # Lignes verticales/horizontales épaisses
         for k in [3, 6]:
             self.line(x + k*taille_case, y+8, x + k*taille_case, y+8+TAILLE_GRILLE)
             self.line(x, y+8 + k*taille_case, x+TAILLE_GRILLE, y+8 + k*taille_case)
-
-
+    
     def dessiner_solution(self, x, y, puzzle_data, solution_data, numero_puzzle):
         """ Dessine une mini-grille de solution avec les chiffres résolus en rouge """
         self.set_xy(x, y)
@@ -108,42 +110,55 @@ class PDF(FPDF):
                     # Centrer le texte dans la case
                     self.set_xy(pos_x, pos_y + 0.5) 
                     self.cell(taille_case, taille_case - 1, char_sol, align='C')
-
+        
         # 3. Dessiner les bordures épaisses (Blocs 3x3)
         self.set_line_width(0.5) 
         self.set_text_color(0) # Remettre à Noir pour le reste du dessin
         self.rect(x, y + 4, TAILLE_MINI_GRILLE, TAILLE_MINI_GRILLE) # Contour extérieur
+        
         # Lignes verticales/horizontales épaisses
         for k in [3, 6]:
             self.line(x + k*taille_case, y+4, x + k*taille_case, y+4+TAILLE_MINI_GRILLE)
             self.line(x, y+4 + k*taille_case, x+TAILLE_MINI_GRILLE, y+4 + k*taille_case)
 
 
+def calculer_difficulte(sudoku_str):
+    """Calcule la difficulté basée sur le nombre de cases vides"""
+    return sudoku_str.count('0') + sudoku_str.count('.')
+
+
 # --- 1. GÉNÉRATION ET TRI DES DONNÉES ---
 print(f"⏳ Génération de {NOMBRE_PUZZLES} puzzles en cours... (ça peut prendre un moment)")
-
 liste_puzzles = []
-MIN_SCORE = 150 
-i = 0
 
-while i < NOMBRE_PUZZLES:
+MIN_CASES_VIDES = 50  # Minimum de cases vides pour avoir un puzzle difficile
+
+i = 0
+tentatives = 0
+max_tentatives = NOMBRE_PUZZLES * 10  # Pour éviter une boucle infinie
+
+while i < NOMBRE_PUZZLES and tentatives < max_tentatives:
+    tentatives += 1
     sudoku = generators.random_sudoku() 
-    score = sudoku.rank() 
+    sudoku_str = str(sudoku)
+    score = calculer_difficulte(sudoku_str)
     
-    if score < MIN_SCORE:
-        # print(f"   - Rejeté (Score: {score}). Trop facile.")
+    if score < MIN_CASES_VIDES:
         continue 
     
     # CALCUL DE LA SOLUTION et conversion en chaîne
     solution = solvers.solve(sudoku) 
     
     liste_puzzles.append({
-        "grid": str(sudoku),
-        "solution": str(solution), # STOCKAGE DE LA SOLUTION
+        "grid": sudoku_str,
+        "solution": str(solution),
         "score": score
     })
-    print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Score: {score})")
+    print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Cases vides: {score})")
     i += 1 
+
+if i < NOMBRE_PUZZLES:
+    print(f"⚠️  Attention : seulement {i} puzzles générés sur {NOMBRE_PUZZLES} demandés")
 
 liste_puzzles.sort(key=lambda x: x['score'])
 print("✅ Tri effectué par difficulté croissante.")
@@ -152,7 +167,7 @@ print("✅ Tri effectué par difficulté croissante.")
 pdf = PDF()
 pdf.set_auto_page_break(False)
 
-# Page de titre (Non modifiée)
+# Page de titre
 pdf.add_page()
 pdf.set_font('helvetica', 'B', 24)
 pdf.ln(80)
@@ -164,7 +179,7 @@ pdf.cell(0, 10, 'Du Difficile à l\'Extrême', align='C')
 pdf.add_page() 
 
 # Calcule le nombre de pages de puzzles pour l'utiliser dans le header du PDF
-pdf.nb_puzzle_pages = math.ceil(NOMBRE_PUZZLES / 4)
+pdf.nb_puzzle_pages = math.ceil(len(liste_puzzles) / 4)
 
 positions_puzzles = [
     (MARGE_GAUCHE, MARGE_HAUT),                      
@@ -181,55 +196,43 @@ for index, data in enumerate(liste_puzzles):
     compteur_pos += 1
     
     if compteur_pos == 4:
-        # S'assure de ne pas ajouter une page après le dernier puzzle
-        if index < NOMBRE_PUZZLES - 1:
+        if index < len(liste_puzzles) - 1:
             pdf.add_page()
         compteur_pos = 0
 
 # --- SECTION SOLUTIONS (4 PAR LIGNE) ---
-pdf.add_page() # Commence la section Solutions sur une nouvelle page
-
+pdf.add_page()
 pdf.set_font('helvetica', 'B', 20)
 pdf.cell(0, 10, 'SOLUTIONS', ln=True, align='C')
 pdf.ln(10)
 
 # Positions pour 4 solutions par ligne
-ESPACE_INTER_SOL = (210 - 2*MARGE_GAUCHE - 4*TAILLE_MINI_GRILLE) / 3 # Espace à répartir entre les 3 trous
+ESPACE_INTER_SOL = (210 - 2*MARGE_GAUCHE - 4*TAILLE_MINI_GRILLE) / 3
 PUZZLES_PAR_LIGNE = 4
-PUZZLES_PAR_PAGE = 8 # Deux lignes de 4
+PUZZLES_PAR_PAGE = 8
 
 positions_solutions = []
-y_depart_solutions = MARGE_HAUT + 10 # 10mm sous le titre "SOLUTIONS"
+y_depart_solutions = MARGE_HAUT + 10
 
-# Calcule les coordonnées pour 8 solutions (2 lignes de 4)
 for row in range(2):
     for col in range(PUZZLES_PAR_LIGNE):
-        # Coordonnée X : Marge + (colonne * (taille grille + espace inter))
         x = MARGE_GAUCHE + col * (TAILLE_MINI_GRILLE + ESPACE_INTER_SOL)
-        # Coordonnée Y : Départ + (ligne * (taille grille + espace ligne))
-        y = y_depart_solutions + row * (TAILLE_MINI_GRILLE + ESPACE_LIGNE_SOL + 4) # +4 pour le titre de la solution
+        y = y_depart_solutions + row * (TAILLE_MINI_GRILLE + ESPACE_LIGNE_SOL + 4)
         positions_solutions.append((x, y))
 
 compteur_pos_sol = 0
-y_current = y_depart_solutions
 
 for index, data in enumerate(liste_puzzles):
     x, y = positions_solutions[compteur_pos_sol % PUZZLES_PAR_PAGE]
-
-    # Pour les solutions, on réutilise le même code de dessin, mais en décalant la hauteur
-    # car il y a potentiellement plus de 8 solutions
     
-    # On calcule la ligne pour repositionner le Y si on passe à une nouvelle ligne de solutions
     row_in_page = compteur_pos_sol // PUZZLES_PAR_LIGNE
     y_adjusted = y_depart_solutions + (row_in_page * (TAILLE_MINI_GRILLE + ESPACE_LIGNE_SOL + 4))
-
+    
     pdf.dessiner_solution(x, y_adjusted, data['grid'], data['solution'], index + 1)
     compteur_pos_sol += 1
-
-    # Si on est à la fin de la page (après 8 solutions)
-    if compteur_pos_sol % PUZZLES_PAR_PAGE == 0 and index < NOMBRE_PUZZLES - 1:
+    
+    if compteur_pos_sol % PUZZLES_PAR_PAGE == 0 and index < len(liste_puzzles) - 1:
         pdf.add_page()
-        # On ne remet pas le compteur à 0, le modulo gère les positions x,y
 
 # --- 3. EXPORT ---
 pdf.output("Livre_Sudoku_Complet.pdf")
