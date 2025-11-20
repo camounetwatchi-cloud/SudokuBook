@@ -1,5 +1,5 @@
 from fpdf import FPDF
-from dokusan import generators, solvers
+from dokusan import generators, solvers, ranking  # <--- Ajout de 'ranking' ici
 import random
 
 # --- CONFIGURATION ---
@@ -30,6 +30,7 @@ class PDF(FPDF):
         
         # 1. Titre du puzzle (au-dessus de la grille)
         self.set_font('helvetica', 'B', 10)
+        self.set_text_color(0) # Reset couleur noire
         self.cell(TAILLE_GRILLE, 8, f"Puzzle N°{numero_puzzle} (Niveau {difficulte_score})", align='L')
         
         # 2. Dessiner les cases et les nombres
@@ -57,37 +58,37 @@ class PDF(FPDF):
 
         # 3. Dessiner les bordures épaisses (Blocs 3x3)
         self.set_line_width(0.8) # Trait épais
+        
         # Contour extérieur
         self.rect(x, y + 8, TAILLE_GRILLE, TAILLE_GRILLE)
+        
         # Lignes verticales épaisses
         self.line(x + 3*taille_case, y+8, x + 3*taille_case, y+8+TAILLE_GRILLE)
         self.line(x + 6*taille_case, y+8, x + 6*taille_case, y+8+TAILLE_GRILLE)
+        
         # Lignes horizontales épaisses
         self.line(x, y+8 + 3*taille_case, x+TAILLE_GRILLE, y+8 + 3*taille_case)
         self.line(x, y+8 + 6*taille_case, x+TAILLE_GRILLE, y+8 + 6*taille_case)
 
-# --- 1. GÉNÉRATION ET TRI DES DONNÉES (CORRIGÉ V2) ---
+# --- 1. GÉNÉRATION ET TRI DES DONNÉES (CORRIGÉ V3) ---
 print(f"⏳ Génération de {NOMBRE_PUZZLES} puzzles en cours... (ça peut prendre un moment)")
 
 liste_puzzles = []
 MIN_SCORE = 150  # Score minimum pour être considéré "Difficile"
-
 i = 0
+
 # Utiliser une boucle while pour garantir que nous obtenons le nombre de puzzles requis
 while i < NOMBRE_PUZZLES:
-    
-    # Génère un sudoku aléatoire simple sans aucun argument
-    # C'est la méthode la plus compatible.
+    # Génère un sudoku aléatoire
     sudoku = generators.random_sudoku() 
     
-    # On récupère le score réel (rank) pour vérifier la difficulté
-    score = sudoku.rank() 
+    # CORRECTION ICI : On utilise ranking.rank(sudoku) au lieu de sudoku.rank()
+    score = ranking.rank(sudoku) 
     
-    # Filtre de difficulté : si le score est trop bas, on ignore ce puzzle et on recommence
+    # Filtre de difficulté
     if score < MIN_SCORE:
-        # On affiche le score pour montrer que le filtre fonctionne
         # print(f"   - Rejeté (Score: {score}). Trop facile.")
-        continue # On passe à la boucle suivante sans incrémenter i
+        continue 
     
     # Si la difficulté est bonne, on ajoute le puzzle
     liste_puzzles.append({
@@ -96,13 +97,11 @@ while i < NOMBRE_PUZZLES:
     })
     print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Score: {score})")
     
-    # On incrémente le compteur seulement si le puzzle a été validé
     i += 1 
 
-# LE TRI MAGIQUE : On trie la liste par 'score' croissant
+# LE TRI : On trie la liste par 'score' croissant
 liste_puzzles.sort(key=lambda x: x['score'])
 print("✅ Tri effectué par difficulté croissante.")
-# --- FIN DE LA SECTION CORRIGÉE V2 ---
 
 # --- 2. CRÉATION DU PDF ---
 pdf = PDF()
@@ -120,7 +119,6 @@ pdf.cell(0, 10, 'Du Difficile à l\'Extrême', align='C')
 pdf.add_page() 
 
 # Positions pour 4 grilles (A4)
-# Pos 1 (Haut Gauche), Pos 2 (Haut Droite), Pos 3 (Bas Gauche), Pos 4 (Bas Droite)
 positions = [
     (MARGE_GAUCHE, MARGE_HAUT),                      # Pos 1
     (MARGE_GAUCHE + TAILLE_GRILLE + 10, MARGE_HAUT), # Pos 2
@@ -135,18 +133,16 @@ for index, data in enumerate(liste_puzzles):
     x, y = positions[compteur_pos]
     
     # Dessiner le sudoku
-    # index + 1 car on veut commencer au Puzzle N°1, pas 0
     pdf.dessiner_sudoku(x, y, data['grid'], index + 1, data['score'])
     
     compteur_pos += 1
     
     # Si on a rempli les 4 positions, on change de page et on remet le compteur à 0
     if compteur_pos == 4:
-        pdf.add_page()
-        compteur_pos = 0
-
-# Si la dernière page est vide (cas rare où le compte tombe pile), on la supprime ou on laisse
-# Ici fpdf gère bien, si on n'appelle pas add_page, on reste sur la courante.
+        # On ajoute une page SEULEMENT s'il reste des puzzles à traiter
+        if index < len(liste_puzzles) - 1:
+            pdf.add_page()
+            compteur_pos = 0
 
 pdf.output("Livre_Sudoku_Trie.pdf")
 print("✅ PDF généré : 'Livre_Sudoku_Trie.pdf'")
