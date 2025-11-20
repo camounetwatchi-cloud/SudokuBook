@@ -66,29 +66,40 @@ class PDF(FPDF):
         self.line(x, y+8 + 3*taille_case, x+TAILLE_GRILLE, y+8 + 3*taille_case)
         self.line(x, y+8 + 6*taille_case, x+TAILLE_GRILLE, y+8 + 6*taille_case)
 
-# --- 1. GÉNÉRATION ET TRI DES DONNÉES ---
+# --- 1. GÉNÉRATION ET TRI DES DONNÉES (CORRIGÉ) ---
 print(f"⏳ Génération de {NOMBRE_PUZZLES} puzzles en cours... (ça peut prendre un moment)")
 
 liste_puzzles = []
+MIN_SCORE = 150  # Score minimum pour être considéré "Difficile"
 
-for i in range(NOMBRE_PUZZLES):
-    # On demande un rang min de 150 (Difficile)
-    # dokusan retourne un objet, on le convertit en string
-    sudoku = generators.random_sudoku(rank=random.randint(150, 450))
+i = 0
+while i < NOMBRE_PUZZLES:
+    # Génère un sudoku aléatoire simple sans paramètre 'rank'
+    # Utilise random_sudoku(min_givens=22) pour avoir de bonnes chances de difficulté
+    sudoku = generators.random_sudoku(min_givens=22) 
     
-    # On récupère le score réel (rank) pour le tri
+    # On récupère le score réel (rank) pour vérifier la difficulté
     score = sudoku.rank() 
     
-    # On stocke tout dans un dictionnaire
+    # Filtre de difficulté : si le score est trop bas, on ignore ce puzzle et on recommence
+    if score < MIN_SCORE:
+        print(f"   - Rejeté (Score: {score}). Trop facile.")
+        continue # On passe à la boucle suivante sans incrémenter i
+    
+    # Si la difficulté est bonne, on ajoute le puzzle
     liste_puzzles.append({
         "grid": str(sudoku),
         "score": score
     })
-    print(f"   - Généré puzzle {i+1}/{NOMBRE_PUZZLES} (Score: {score})")
+    print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Score: {score})")
+    
+    # On incrémente le compteur seulement si le puzzle a été validé
+    i += 1 
 
 # LE TRI MAGIQUE : On trie la liste par 'score' croissant
 liste_puzzles.sort(key=lambda x: x['score'])
 print("✅ Tri effectué par difficulté croissante.")
+# --- FIN DE LA SECTION CORRIGÉE ---
 
 # --- 2. CRÉATION DU PDF ---
 pdf = PDF()
