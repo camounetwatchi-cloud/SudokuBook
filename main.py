@@ -66,24 +66,27 @@ class PDF(FPDF):
         self.line(x, y+8 + 3*taille_case, x+TAILLE_GRILLE, y+8 + 3*taille_case)
         self.line(x, y+8 + 6*taille_case, x+TAILLE_GRILLE, y+8 + 6*taille_case)
 
-# --- 1. GÉNÉRATION ET TRI DES DONNÉES (CORRIGÉ) ---
+# --- 1. GÉNÉRATION ET TRI DES DONNÉES (CORRIGÉ V2) ---
 print(f"⏳ Génération de {NOMBRE_PUZZLES} puzzles en cours... (ça peut prendre un moment)")
 
 liste_puzzles = []
 MIN_SCORE = 150  # Score minimum pour être considéré "Difficile"
 
 i = 0
+# Utiliser une boucle while pour garantir que nous obtenons le nombre de puzzles requis
 while i < NOMBRE_PUZZLES:
-    # Génère un sudoku aléatoire simple sans paramètre 'rank'
-    # Utilise random_sudoku(min_givens=22) pour avoir de bonnes chances de difficulté
-    sudoku = generators.random_sudoku(min_givens=22) 
+    
+    # Génère un sudoku aléatoire simple sans aucun argument
+    # C'est la méthode la plus compatible.
+    sudoku = generators.random_sudoku() 
     
     # On récupère le score réel (rank) pour vérifier la difficulté
     score = sudoku.rank() 
     
     # Filtre de difficulté : si le score est trop bas, on ignore ce puzzle et on recommence
     if score < MIN_SCORE:
-        print(f"   - Rejeté (Score: {score}). Trop facile.")
+        # On affiche le score pour montrer que le filtre fonctionne
+        # print(f"   - Rejeté (Score: {score}). Trop facile.")
         continue # On passe à la boucle suivante sans incrémenter i
     
     # Si la difficulté est bonne, on ajoute le puzzle
@@ -99,7 +102,7 @@ while i < NOMBRE_PUZZLES:
 # LE TRI MAGIQUE : On trie la liste par 'score' croissant
 liste_puzzles.sort(key=lambda x: x['score'])
 print("✅ Tri effectué par difficulté croissante.")
-# --- FIN DE LA SECTION CORRIGÉE ---
+# --- FIN DE LA SECTION CORRIGÉE V2 ---
 
 # --- 2. CRÉATION DU PDF ---
 pdf = PDF()
