@@ -3,7 +3,7 @@ from dokusan import generators, solvers
 import random
 
 # --- CONFIGURATION ---
-NOMBRE_PUZZLES = 12  # Nombre de puzzles (Multiple de 4 conseillé)
+NOMBRE_PUZZLES = 80  # Nombre de puzzles (Multiple de 4 conseillé)
 TAILLE_GRILLE = 80   # Taille en mm
 MARGE_GAUCHE = 15    # Marge KDP
 MARGE_HAUT = 30      # Espace titre
