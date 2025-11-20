@@ -15,6 +15,10 @@ TAILLE_MINI_GRILLE = 40 # 40mm pour que 4 tiennent sur une ligne
 ESPACE_LIGNE_SOL = 5    # Espace vertical entre les lignes de solutions
 
 class PDF(FPDF):
+    def __init__(self):
+        super().__init__()
+        self.nb_puzzle_pages = 0  # Initialisation de l'attribut
+    
     def header(self):
         if self.page_no() > 1:
             self.set_font('helvetica', 'B', 10)
@@ -164,6 +168,9 @@ print("✅ Tri effectué par difficulté croissante.")
 pdf = PDF()
 pdf.set_auto_page_break(False)
 
+# Calcule le nombre de pages de puzzles AVANT de créer les pages
+pdf.nb_puzzle_pages = math.ceil(len(liste_puzzles) / 4)
+
 # Page de titre
 pdf.add_page()
 pdf.set_font('helvetica', 'B', 24)
@@ -174,9 +181,6 @@ pdf.cell(0, 10, 'Du Difficile à l\'Extrême', align='C')
 
 # --- SECTION PUZZLES (4 PAR PAGE) ---
 pdf.add_page() 
-
-# Calcule le nombre de pages de puzzles pour l'utiliser dans le header du PDF
-pdf.nb_puzzle_pages = math.ceil(len(liste_puzzles) / 4)
 
 positions_puzzles = [
     (MARGE_GAUCHE, MARGE_HAUT),                      
