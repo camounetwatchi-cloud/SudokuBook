@@ -1,6 +1,5 @@
 from fpdf import FPDF
-from dokusan import generators, solvers
-import random
+from dokusan import generators, solvers, stats
 import math
 
 # --- CONFIGURATION GLOBALE ---
@@ -41,7 +40,7 @@ class PDF(FPDF):
         
         # 1. Titre du puzzle
         self.set_font('helvetica', 'B', 10)
-        self.cell(TAILLE_GRILLE, 8, f"Puzzle N°{numero_puzzle} (Cases vides: {difficulte_score})", align='L')
+        self.cell(TAILLE_GRILLE, 8, f"Puzzle N°{numero_puzzle} (Difficulté: {difficulte_score})", align='L')
         
         # 2. Dessiner les cases et les nombres
         taille_case = TAILLE_GRILLE / 9
@@ -122,39 +121,37 @@ class PDF(FPDF):
             self.line(x, y+4 + k*taille_case, x+TAILLE_MINI_GRILLE, y+4 + k*taille_case)
 
 
-def calculer_difficulte(sudoku_str):
-    """Calcule la difficulté basée sur le nombre de cases vides"""
-    return sudoku_str.count('0') + sudoku_str.count('.')
-
-
 # --- 1. GÉNÉRATION ET TRI DES DONNÉES ---
 print(f"⏳ Génération de {NOMBRE_PUZZLES} puzzles en cours... (ça peut prendre un moment)")
 liste_puzzles = []
 
-MIN_CASES_VIDES = 50  # Minimum de cases vides pour avoir un puzzle difficile
+MIN_RANK = 150  # Difficulté minimale
 
 i = 0
 tentatives = 0
-max_tentatives = NOMBRE_PUZZLES * 10  # Pour éviter une boucle infinie
+max_tentatives = NOMBRE_PUZZLES * 20
 
 while i < NOMBRE_PUZZLES and tentatives < max_tentatives:
     tentatives += 1
-    sudoku = generators.random_sudoku() 
-    sudoku_str = str(sudoku)
-    score = calculer_difficulte(sudoku_str)
     
-    if score < MIN_CASES_VIDES:
+    # Génération d'un sudoku difficile (avg_rank entre 150 et 450)
+    sudoku = generators.random_sudoku(avg_rank=200)
+    
+    # Calcul du score de difficulté
+    score = stats.rank(sudoku)
+    
+    if score < MIN_RANK:
         continue 
     
-    # CALCUL DE LA SOLUTION et conversion en chaîne
-    solution = solvers.solve(sudoku) 
+    # RÉSOLUTION du sudoku avec la bonne fonction : backtrack()
+    solution = solvers.backtrack(sudoku)
     
     liste_puzzles.append({
-        "grid": sudoku_str,
+        "grid": str(sudoku),
         "solution": str(solution),
         "score": score
     })
-    print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Cases vides: {score})")
+    print(f"   - Validé puzzle {i+1}/{NOMBRE_PUZZLES} (Difficulté: {score})")
     i += 1 
 
 if i < NOMBRE_PUZZLES:
